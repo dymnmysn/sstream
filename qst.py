@@ -674,30 +674,59 @@ class StreamableModel(pl.LightningModule):
 
 
     def forward(self, input):
-        x = self.encoder(input)
+        # Extract original energy and normalize input
+        energy = torch.sqrt(torch.mean(input**2, dim=-1, keepdim=True) + 1e-8)
+        normalized_input = input / energy
+        
+        x = self.encoder(normalized_input)
         x = self.embed(x)   # quantized embeddings
-        x = self.decoder(x)
-        return x
+        dec_out = self.decoder(x)
+        
+        # Normalize the decoder output before re-applying the original energy
+        dec_energy = torch.sqrt(torch.mean(dec_out**2, dim=-1, keepdim=True) + 1e-8)
+        normalized_dec_out = dec_out / dec_energy
+        
+        output = normalized_dec_out * energy
+        return output
+
 
     def debugencode(self, input):
-        x = self.encoder(input)
+        energy = torch.sqrt(torch.mean(input**2, dim=-1, keepdim=True) + 1e-8)
+        normalized_input = input / energy
+        
+        x = self.encoder(normalized_input)
         y = self.embed(x)  # quantized
-        codes = self.embed.last_codes  # shape (B, 2, L)
-        return input, x, y, codes
+        codes = self.embed.last_codes  # shape (B, 4, L)
+        
+        return input, x, y, codes, energy
 
     def justencode(self, x):
         return self.encoder(x)
 
     def encode(self, input):
-        x = self.encoder(input)
+        # Extract and save energy
+        energy = torch.sqrt(torch.mean(input**2, dim=-1, keepdim=True) + 1e-8)
+        normalized_input = input / energy
+        
+        x = self.encoder(normalized_input)
         _ = self.embed(x)   # forward to update last_codes
-        codes = self.embed.last_codes  # (B, 2, L)
-        return codes
+        codes = self.embed.last_codes  # (B, 4, L)
+        
+        return codes, energy
 
-    def decode(self, codes):
-        x = self.embed.decode(codes)  # handle (B, 2, L) internally
-        x = self.decoder(x)
-        return x
+    def decode(self, codes, energy=None):
+        x = self.embed.decode(codes)  
+        dec_out = self.decoder(x)
+        
+        # Re-apply energy safely if provided during inference
+        if energy is not None:
+            dec_energy = torch.sqrt(torch.mean(dec_out**2, dim=-1, keepdim=True) + 1e-8)
+            normalized_dec_out = dec_out / dec_energy
+            output = normalized_dec_out * energy
+            return output
+            
+        return dec_out
+
 
     def on_train_epoch_start(self):
         # Lightning tracks current_epoch automatically
