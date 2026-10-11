@@ -23,8 +23,6 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 DEBUG = False
 
 
-
-
 class Embedding(nn.Module):
     def __init__(self, num_embeddings=2048, embedding_dim=2048,
                  start_t=1, end_t=10, total_epochs=1200, eps=1e-8):
@@ -88,7 +86,9 @@ class Embedding(nn.Module):
         decoded_1 = decoded_1.permute(0, 2, 1).contiguous()
         decoded_2 = decoded_2.permute(0, 2, 1).contiguous()
         decoded_3 = decoded_3.permute(0, 2, 1).contiguous()
+        decoded = torch.cat([decoded_0, decoded_1, decoded_2, decoded_3], dim=1)
 
+        """
         if self.training:
             k = torch.randint(low=0, high=4, size=(1,), device=decoded_0.device).item()
             zeros = torch.zeros_like(decoded_0)
@@ -103,6 +103,7 @@ class Embedding(nn.Module):
         else:
             # During eval, always use all terms
             decoded = torch.cat([decoded_0, decoded_1, decoded_2, decoded_3], dim=1)
+        """
 
         return decoded
 
@@ -1379,10 +1380,10 @@ class StreamableModel(pl.LightningModule):
 
 def train():
     model = StreamableModel(
-        batch_size=8192, #256,cc, 1024
+        batch_size=512, #256,cc, 1024
         sample_rate=16_000, #16_000,
-        segment_length=590, #32270,
-        window_shift=300, #for dataset generation
+        segment_length=6350, #32270,
+        window_shift=6000, #for dataset generation
         include_tail=True,
         padding='same',
         dataset='librispeech')
