@@ -20,7 +20,7 @@ from itertools import chain
 import random
 from pytorch_lightning.callbacks import ModelCheckpoint
 
-DEBUG = False
+DEBUG = True
 
 
 class Embedding(nn.Module):
